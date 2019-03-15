@@ -161,7 +161,7 @@ public class RandomOptimizer {
                 System.out.println(" " + minNeighborCost);
 
             }
-            if (minNeighborCost < MINCOST) {
+            if (minNeighborCost <= MINCOST) {
                 MINCOST = minNeighborCost;
                 finalPlan = minNeighbor;
 
