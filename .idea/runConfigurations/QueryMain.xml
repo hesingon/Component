@@ -1,0 +1,21 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="QueryMain" type="Application" factoryName="Application">
+    <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea" />
+    <option name="MAIN_CLASS_NAME" value="QueryMain" />
+    <option name="VM_PARAMETERS" value="" />
+    <option name="PROGRAM_PARAMETERS" value="testcases/query1 query1.out" />
+    <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <option name="ENABLE_SWING_INSPECTOR" value="false" />
+    <option name="ENV_VARIABLES" />
+    <option name="PASS_PARENT_ENVS" value="true" />
+    <module name="Component" />
+    <envs>
+      <env name="CLASSPATH" value="$WORKING_DIR:$WORKING_DIR/classes:$WORKING_DIR/lib/CUP:$WORKING_DIR/lib/JLEX:." />
+      <env name="WORKING_DIR" value="/Users/Darius/Desktop/IVLE/CS3223/project/Component/output" />
+      <env name="COMPONENT" value="$WORKING_DIR" />
+    </envs>
+    <method />
+  </configuration>
+</component>
