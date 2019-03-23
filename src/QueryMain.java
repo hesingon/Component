@@ -100,7 +100,7 @@ public class QueryMain {
         }
 
 
-/** This part is used When some random initial plan is required instead of comple optimized plan **/
+/** This part is used When some random initial plan is required instead of complete optimized plan **/
 /**
 
  RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
@@ -176,7 +176,7 @@ public class QueryMain {
         /** print each tuple in the result **/
 
 
-        while ((resultbatch = root.next()) != null) {
+        while ((resultbatch = root.next()).size() != 0) {
             for (int i = 0; i < resultbatch.size(); i++) {
                 printTuple(resultbatch.elementAt(i));
             }

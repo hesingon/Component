@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RandomDB" type="Application" factoryName="Application" nameIsGenerated="true">
+    <envs>
+      <env name="WORKING_DIR" value="$USER_HOME$/Downloads/Component" />
+      <env name="COMPONENT" value="$USER_HOME$/Downloads/Component" />
+      <env name="CLASSPATH" value="$WORKING_DIR:$WORKING_DIR/classes:$WORKING_DIR/lib/CUP:$WORKING_DIR/lib/JLEX:." />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="RandomDB" />
+    <module name="Component" />
+    <option name="PROGRAM_PARAMETERS" value="BILL 4" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

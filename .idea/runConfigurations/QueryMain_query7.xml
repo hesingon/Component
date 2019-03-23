@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="QueryMain-query1" type="Application" factoryName="Application">
+  <configuration default="false" name="QueryMain-query7" type="Application" factoryName="Application">
     <envs>
       <env name="CLASSPATH" value="$WORKING_DIR:$WORKING_DIR/classes:$WORKING_DIR/lib/CUP:$WORKING_DIR/lib/JLEX:." />
       <env name="WORKING_DIR" value="$PROJECT_DIR$/output" />
@@ -7,7 +7,7 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="QueryMain" />
     <module name="Component" />
-    <option name="PROGRAM_PARAMETERS" value="query1 output/query1_out.txt" />
+    <option name="PROGRAM_PARAMETERS" value="query7 output/query7_out.txt" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/testcases" />
     <method v="2">
       <option name="Make" enabled="true" />

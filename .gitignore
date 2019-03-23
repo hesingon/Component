@@ -5,6 +5,9 @@ target/
 libs/
 tmp/
 node_modules/
+testcases/
+
+NJtemp*
 
 # OS Files #
 .DS_Store
