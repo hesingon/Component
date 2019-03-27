@@ -426,8 +426,10 @@ public class RandomOptimizer {
                  replace with hasjoin, if implemented **/
 
                 case JoinType.BLOCKNESTED:
-
-                    NestedJoin bj = new NestedJoin((Join) node);
+                    BLOCKNESTED bj = new BLOCKNESTED((Join) node);
+                    bj.setLeft(left);
+                    bj.setRight(right);
+                    bj.setNumBuff(numbuff);
                 /* + other code */
                     return bj;
 
