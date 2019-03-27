@@ -1,5 +1,5 @@
 /**
- * page nested join algorithm
+ * block nested join algorithm
  **/
 
 package qp.operators;
@@ -17,7 +17,7 @@ public class BLOCKNESTED extends Join {
     int batchsize;  //Number of tuples per out batch
 
     /** The following fields are useful during execution of
-     ** the NestedJoin operation
+     ** the BLOCKNESTED operation
      **/
     int leftindex;     // Index of the join attribute in left table
     int rightindex;    // Index of the join attribute in right table
