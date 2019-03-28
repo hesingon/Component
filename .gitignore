@@ -5,7 +5,7 @@ target/
 libs/
 tmp/
 node_modules/
-testcases/
+output/
 
 NJtemp*
 
