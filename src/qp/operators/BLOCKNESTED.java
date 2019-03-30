@@ -75,7 +75,7 @@ public class BLOCKNESTED extends Join {
         eosr = true;
 
         /** Right hand side table is to be materialized
-         ** for the Block Nested Loop join to perform
+         ** for the Block Neste d Loop join to perform
          **/
 
         if (!right.open()) {
@@ -211,20 +211,16 @@ public class BLOCKNESTED extends Join {
                 rBatch = (Batch) in.readObject();
                 rightbatches.add(rBatch);
                 numBufferedRightTuples += rBatch.size();
-                if (i == 0 ) {
+                if (i == 0) {
                     rCapacity = rBatch.capacity();
                 }
             }
 
         } catch (EOFException e) {
-            try {
-                in.close();
-            } catch (IOException io) {
-                System.out.println("BLOCKNESTED:Error in temporary file reading");
-            }
         }
         if (rightbatches.size() == 0) {
             eosr = true;
+            in.close();
         }
     }
 
