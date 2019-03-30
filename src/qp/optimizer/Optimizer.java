@@ -25,7 +25,7 @@ public class Optimizer {
     }
 
 
-    protected Operator getBestJoin(Operator left, Operator right, Condition cn) {
+    private static Operator getBestJoin(Operator left, Operator right, Condition cn) {
         int lowestCost = Integer.MAX_VALUE;
         Join bestJoin = null;
         PlanCost planCost = new PlanCost();
@@ -48,7 +48,7 @@ public class Optimizer {
         return bestJoin;
     }
 
-    protected Join switchSubtree(Join node) {
+    private static Join switchSubtree(Join node) {
         System.out.println("------------------switch by commutative---------------");
         Join cloned = (Join) node.clone();
         Operator left = node.getLeft();
@@ -66,7 +66,7 @@ public class Optimizer {
     /**
      * modifies the schema of operators which are modified due to selecting an alternative neighbor plan
      **/
-    private void modifySchema(Operator node) {
+    private static void modifySchema(Operator node) {
 
 
         if (node.getOpType() == OpType.JOIN) {
