@@ -1,45 +1,49 @@
 /**
- * page nested join algorithm
- **/
-
+ * Sort Merge Join Algorithm
+ */
 package qp.operators;
 
 import qp.utils.Attribute;
 import qp.utils.Batch;
+import qp.utils.RandNumb;
 import qp.utils.Tuple;
-
-import java.io.*;
+import java.util.Vector;
 
 public class SortMergeJoin extends Join {
+    int batchsize;      // Number of tuples per out batch
 
+    int leftindex;      // Index of the join attribute in left table
+    int rightindex;
+    int leftBatchSize;
+    int rightBatchSize;
 
-    int batchsize;  //Number of tuples per out batch
+    int leftCur;    // Cursor for left side buffer
+    int rightCur;    // Cursor for right side buffer
+    int tempcurs;
 
-    /** The following fields are useful during execution of
-     ** the NestedJoin operation
-     **/
-    int leftindex;     // Index of the join attribute in left table
-    int rightindex;    // Index of the join attribute in right table
+    Attribute leftattr;
+    Attribute rightattr;
+    Batch outbatch;     // Output batch
+    Batch leftBatch;    // Buffer for left input stream
+    Batch rightBatch;   // Buffer for right input stream
 
-    String rfname;    // The file name where the right table is materialize
+    /*
+     * Sorted table stored in disk, next() function get the next batch of sorted tuples
+     */
+    ExternalMergeSort sortedLeft;
+    ExternalMergeSort sortedRight;
 
-    static int filenum = 0;   // To get unique filenum for this operation
+    Tuple leftTuple;
+    Tuple rightTuple;
+    Tuple refTuple;
+    Vector tempBlock;
 
-    Batch outbatch;   // Output buffer
-    Batch leftbatch;  // Buffer for left input stream
-    Batch rightbatch;  // Buffer for right input stream
-    ObjectInputStream in; // File pointer to the right hand materialized file
-
-    int lcurs;    // Cursor for left side buffer
-    int rcurs;    // Cursor for right side buffer
-    boolean eosl;  // Whether end of stream (left table) is reached
-    boolean eosr;  // End of stream (right table)
+    boolean reachEnd;  // either of the tables reaches the end
 
     public SortMergeJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getCondition(), jn.getOpType());
         schema = jn.getSchema();
         jointype = jn.getJoinType();
-        numBuff = jn.getNumBuff();
     }
 
 
@@ -48,213 +52,238 @@ public class SortMergeJoin extends Join {
      **  Opens the connections
      **/
 
-
+    @Override
     public boolean open() {
+        System.out.println("SortMergeJoin: -----------------in open--------------");
+        Debug.PPrint(schema);
 
-        /** select number of tuples per batch **/
+        /** select number of tuples per batch and number of batches per block **/
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
 
-        Attribute leftattr = con.getLhs();
-        Attribute rightattr = (Attribute) con.getRhs();
+        leftattr = con.getLhs();
+        rightattr = (Attribute) con.getRhs();
+
+        Vector<Attribute> leftSet = new Vector<>();
+        Vector<Attribute> rightSet = new Vector<>();
+        leftSet.add(leftattr);
+        rightSet.add(rightattr);
+
         leftindex = left.getSchema().indexOf(leftattr);
         rightindex = right.getSchema().indexOf(rightattr);
-        Batch rightpage;
-        /** initialize the cursors of input buffers **/
 
-        lcurs = 0;
-        rcurs = 0;
-        eosl = false;
-        /** because right stream is to be repetitively scanned
-         ** if it reached end, we have to start new scan
-         **/
-        eosr = true;
+        leftBatchSize = Batch.getPageSize() / left.getSchema().getTupleSize();
+        rightBatchSize = Batch.getPageSize() / right.getSchema().getTupleSize();
 
-        /** Right hand side table is to be materialized
-         ** for the Nested join to perform
-         **/
+        sortedLeft = new ExternalMergeSort(left, leftSet, optype, numBuff, "left" + RandNumb.randInt(0, 10000));
+        sortedRight = new ExternalMergeSort(right, rightSet, optype, numBuff, "right" + RandNumb.randInt(0,10000));
 
-        if (!right.open()) {
+        if (!left.open() || !right.open()) {
             return false;
-        } else {
-            /** If the right operator is not a base table then
-             ** Materialize the intermediate result from right
-             ** into a file
-             **/
-
-            //if(right.getOpType() != OpType.SCAN){
-            filenum++;
-            rfname = "NJtemp-" + String.valueOf(filenum);
-            try {
-                ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(rfname));
-                while ((rightpage = right.next()) != null) {
-                    out.writeObject(rightpage);
-                }
-                out.close();
-            } catch (IOException io) {
-                System.out.println("NestedJoin:writing the temporay file error");
-                return false;
-            }
-            //}
-            if (!right.close())
-                return false;
         }
-        if (left.open())
-            return true;
-        else
+
+        /** Both right table and left side table
+         ** are sorted here at the beginning
+         **/
+        if (!sortedLeft.open() || !sortedRight.open()) {
+            System.out.println("SortMergeJoin: Could not open left or right table");
             return false;
+        }
+
+        // Initialize for the while loop
+        tempBlock = new Vector();
+        tempcurs = 0;
+        reachEnd = false;
+        leftCur = 0; rightCur = 0;
+
+        // Get first batch of sorted tuples
+        leftBatch = sortedLeft.next();
+        rightBatch = sortedRight.next();
+
+        refTuple = rightBatch.elementAt(0);
+        saveRightTableSameTuples();
+
+        return true;
     }
 
 
+
     /** from input buffers selects the tuples satisfying join condition
-     ** And returns a page of output tuples
-     **/
-
-
+     * And returns a page of output tuples
+     */
     public Batch next() {
-        //System.out.print("NestedJoin:--------------------------in next----------------");
-        //Debug.PPrint(con);
-        //System.out.println();
-        int i, j;
-        if (eosl) {
-            close();
-            return null;
-        }
+        System.out.println("SortMergeJoin:-----------------in next--------------" + "debug: 09");
+
         outbatch = new Batch(batchsize);
-
-
         while (!outbatch.isFull()) {
 
-            if (lcurs == 0 && eosr == true) {
-                /** new left page is to be fetched**/
-                leftbatch = (Batch) left.next();
-                if (leftbatch == null) {
-                    eosl = true;
-                    return outbatch;
-                }
-                /** Whenver a new left page came , we have to start the
-                 ** scanning of right table
-                 **/
-                try {
+            /**
+             * Handle the case right/left batch reaches the end
+             * process tuples in tempBlock according to equality
+             */
+            if (reachEnd) {
+                if(tempBlock != null && !tempBlock.isEmpty()) {
+                    while (!outbatch.isFull()) {
+                        leftTuple = leftBatch.elementAt(leftCur);
+                        int diff = Tuple.compareTuples(leftTuple, refTuple, leftindex, rightindex);
 
-                    in = new ObjectInputStream(new FileInputStream(rfname));
-                    eosr = false;
-                } catch (IOException io) {
-                    System.err.println("NestedJoin:error in reading the file");
-                    System.exit(1);
-                }
+                        if (diff < 0) {
+                            if (!processNextLeftCur()) return outbatch;
 
-            }
-
-            while (eosr == false) {
-
-                try {
-                    if (rcurs == 0 && lcurs == 0) {
-                        rightbatch = (Batch) in.readObject();
-                    }
-
-                    for (i = lcurs; i < leftbatch.size(); i++) {
-                        for (j = rcurs; j < rightbatch.size(); j++) {
-                            Tuple lefttuple = leftbatch.elementAt(i);
-                            Tuple righttuple = rightbatch.elementAt(j);
-                            if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
-                                Tuple outtuple = lefttuple.joinWith(righttuple);
-
-                                //Debug.PPrint(outtuple);
-                                //System.out.println();
-                                outbatch.add(outtuple);
+                        } else if (diff == 0) {
+                            while (tempcurs < tempBlock.size()) {
+                                outbatch.add(leftTuple.joinWith((Tuple) tempBlock.get(tempcurs)));
+                                tempcurs++;
+                                // return when outbatch is full, leftover will be handled at the start of the next run
                                 if (outbatch.isFull()) {
-                                    if (i == leftbatch.size() - 1 && j == rightbatch.size() - 1) {//case 1
-                                        lcurs = 0;
-                                        rcurs = 0;
-                                    } else if (i != leftbatch.size() - 1 && j == rightbatch.size() - 1) {//case 2
-                                        lcurs = i + 1;
-                                        rcurs = 0;
-                                    } else if (i == leftbatch.size() - 1 && j != rightbatch.size() - 1) {//case 3
-                                        lcurs = i;
-                                        rcurs = j + 1;
-                                    } else {
-                                        lcurs = i;
-                                        rcurs = j + 1;
-                                    }
                                     return outbatch;
                                 }
                             }
+                            if (tempcurs == tempBlock.size()) {
+                                tempcurs = 0;
+                                if (!processNextLeftCur()) return outbatch;
+                            } else {
+                                System.out.println("Error: SortMergeJoin: tempBlock not fully traversed!");
+                            }
+
+                        } else if (diff > 0) {
+                            tempBlock.clear();
+                            tempcurs = 0;
+                            return outbatch;
                         }
-                        rcurs = 0;
                     }
-                    lcurs = 0;
-                } catch (EOFException e) {
-                    try {
-                        in.close();
-                    } catch (IOException io) {
-                        System.out.println("NestedJoin:Error in temporary file reading");
-                    }
-                    eosr = true;
-                } catch (ClassNotFoundException c) {
-                    System.out.println("NestedJoin:Some error in deserialization ");
-                    System.exit(1);
-                } catch (IOException io) {
-                    System.out.println("NestedJoin:temporary file reading error");
-                    System.exit(1);
+                } else {
+                    // Nothing to process further
+                    close();
+                    return null;
                 }
+            }
+
+            /**
+             * No table reached the end, able to proceed
+             */
+            leftTuple = leftBatch.elementAt(leftCur);
+            int diff = Tuple.compareTuples(leftTuple, refTuple, leftindex, rightindex);
+
+            // left tuple and right tuple have the same attribute value
+            if (diff == 0) {
+                // handle the equal condition
+                if (!handleMatch()) return outbatch;
+
+                // Verify join completion
+                if (tempcurs == tempBlock.size()) {
+                    tempcurs = 0;
+                    if (!processNextLeftCur()) return outbatch;
+                } else {
+                    System.out.println("Error: SortMergeJoin: tempBlock not fully traversed!");
+                }
+
+            } else if (diff < 0) {
+                // leftTuple smaller than right, leftTuple move to the next and continue checking
+                if (!processNextLeftCur()) return outbatch;
+
+            } else if (diff > 0) {
+                // leftTuple larger than right, move to next right tuple if possible
+                tempBlock.clear();
+                tempcurs = 0;
+
+                // Move to next
+                while (Tuple.compareTuples(leftTuple, rightTuple, leftindex, rightindex) > 0) {
+                    rightCur++;
+                    if (rightCur == rightBatch.size()) {
+                        rightCur = 0;
+                        rightBatch = sortedRight.next();
+                        if(rightBatch == null) {
+                            reachEnd = true;
+                            break;
+                        }
+                    }
+                    rightTuple = rightBatch.elementAt(rightCur);
+                }
+
+                // Check whether rightTable reaches the end
+                if(rightBatch == null) {
+                    reachEnd = true;
+                    break;
+                }
+
+                refTuple = rightBatch.elementAt(rightCur);
+
+                saveRightTableSameTuples();
             }
         }
         return outbatch;
     }
 
+    /**
+     * join leftTuple with tuples in tempBlock
+     * @return true: outBatch OK to go      false: outBatch is full
+     */
+    public boolean handleMatch() {
+        while (tempcurs < tempBlock.size()) {
+            outbatch.add(leftTuple.joinWith((Tuple) tempBlock.get(tempcurs)));
+            tempcurs++;
 
-    /** Close the operator */
-    public boolean close() {
-
-        File f = new File(rfname);
-        f.delete();
+            /**
+             * If the outBatch is full, then return the batch
+             * Other matching tuples can be handled in next iteration
+             */
+            if (outbatch.isFull()) {
+                return false;
+            }
+        }
         return true;
-
     }
 
+    /**
+     * Call this function to handle next value of leftCur
+     * @return true: hasNext    false: doesn't have next
+     */
+    private boolean processNextLeftCur() {
+        leftCur++;
+        if (leftCur == leftBatch.size()) { // Move to next batch is necessary
+            leftBatch = sortedLeft.next();
+            leftCur = 0;
+            if (leftBatch == null) { // Should not continue for this round
+                reachEnd = true;
+                tempBlock.clear();
+                return false;
+            }
+        }
+        return true;
+    }
 
+    /**
+     * Move current right tuple to the tempBlock if they have same value
+     * @return a boolean for successful execution
+     */
+    private boolean saveRightTableSameTuples() {
+        while (rightBatch != null) {
+            rightTuple = rightBatch.elementAt(rightCur);
+
+            if (Tuple.compareTuples(refTuple, rightTuple, rightindex) == 0) {
+                tempBlock.add(rightTuple);
+                rightCur++;
+
+                // In case there are a lot tuples with same merge attribute
+                if (rightCur == rightBatch.size()) {
+                    rightCur = 0;
+                    rightBatch = sortedRight.next();
+                    if (rightBatch == null) {
+                        reachEnd = true;
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        return true;
+    }
+
+    public boolean close() {
+        sortedLeft.close();
+        sortedRight.close();
+        return true;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
