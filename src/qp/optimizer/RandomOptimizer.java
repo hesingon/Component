@@ -192,7 +192,7 @@ public class RandomOptimizer {
             while (joinMeth == prevJoinMeth) {
                 joinMeth = RandNumb.randInt(0, numJMeth - 1);
             }
-            node.setJoinType(2);//joinMeth);
+            node.setJoinType(joinMeth);
         }
         return root;
     }
@@ -434,11 +434,10 @@ public class RandomOptimizer {
                     return bj;
 
                 case JoinType.SORTMERGE:
-
                     SortMergeJoin sm = new SortMergeJoin((Join) node);
                     sm.setLeft(left);
                     sm.setRight(right);
-                    sm.setNumBuff(numbuff);//TO BE CHANGE
+                    sm.setNumBuff(numbuff);
                     return sm;
 
                 case JoinType.HASHJOIN:
