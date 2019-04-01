@@ -160,7 +160,7 @@ public class BLOCKNESTED extends Join {
                     for (i = lcurs; i < leftbatch.size(); i++) {
                         for (j = rcurs; j < numBufferedRightTuples; j++) {
                             Tuple lefttuple = leftbatch.elementAt(i);
-                            Tuple righttuple = rightbatches.get(rcurs/ rCapacity).elementAt(j % rCapacity);
+                            Tuple righttuple = rightbatches.get(j/ rCapacity).elementAt(j % rCapacity);
                             if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
                                 Tuple outtuple = lefttuple.joinWith(righttuple);
 
