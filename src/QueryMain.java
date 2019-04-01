@@ -78,7 +78,7 @@ public class QueryMain {
          **/
 
 
-        if (numJoin != 0) {
+        if (numJoin != 0 || sqlquery.isDistinct()) {
             System.out.println("enter the number of buffers available");
 
             try {
@@ -127,7 +127,7 @@ public class QueryMain {
 
         /** preparing the execution plan **/
 
-        Operator root = RandomOptimizer.makeExecPlan(logicalroot);
+        Operator root = RandomOptimizer.makeExecPlan(logicalroot, sqlquery.isDistinct());
 
 /** Print final Plan **/
         System.out.println("----------------------Execution Plan----------------");
