@@ -75,8 +75,8 @@ public class SortMergeJoin extends Join {
         leftBatchSize = Batch.getPageSize() / left.getSchema().getTupleSize();
         rightBatchSize = Batch.getPageSize() / right.getSchema().getTupleSize();
 
-        sortedLeft = new ExternalMergeSort(left, leftSet, optype, numBuff, "left" + RandNumb.randInt(0, 10000));
-        sortedRight = new ExternalMergeSort(right, rightSet, optype, numBuff, "right" + RandNumb.randInt(0,10000));
+        sortedLeft = new ExternalMergeSort(left, leftSet, optype, numBuff, "LeftSort" + RandNumb.randInt(100000, 999999));
+        sortedRight = new ExternalMergeSort(right, rightSet, optype, numBuff, "RightSort" + RandNumb.randInt(100000,999999));
 
         if (!left.open() || !right.open()) {
             return false;
