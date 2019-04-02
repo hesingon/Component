@@ -173,8 +173,6 @@ public class QueryMain {
         Batch resultbatch;
 
 
-        /** print each tuple in the result **/
-
         /**
          * BUG REPORT:
          * resultbatch may be null, then the old implementation will throw unexpected exception
