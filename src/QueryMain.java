@@ -175,8 +175,11 @@ public class QueryMain {
 
         /** print each tuple in the result **/
 
-
-        while ((resultbatch = root.next()).size() != 0) {
+        /**
+         * BUG REPORT:
+         * resultbatch may be null, then the old implementation will throw unexpected exception
+         */
+        while ((resultbatch = root.next()) != null) {
             for (int i = 0; i < resultbatch.size(); i++) {
                 printTuple(resultbatch.elementAt(i));
             }
