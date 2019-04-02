@@ -89,6 +89,17 @@ public class Tuple implements Serializable {
         }
     }
 
+    // precondition: the size of the two tuples has to be the same
+    public static boolean isDuplicate(Tuple left, Tuple right) {
+        int size = left.data().size();
+        assert(size == right.data().size());
+        for (int i = 0; i < size; i++) {
+            if (!left.data().elementAt(i).equals(right.data().elementAt(i)))
+                return false;
+        }
+        return true;
+    }
+
 
 }
 
