@@ -172,10 +172,13 @@ public class QueryMain {
         printSchema(schema);
         Batch resultbatch;
 
-
         /** print each tuple in the result **/
 
 
+        /**
+         * BUG REPORT:
+         * resultbatch may be null, then the old implementation will throw unexpected exception
+         */
         while ((resultbatch = root.next()) != null && resultbatch.size() != 0) {
             for (int i = 0; i < resultbatch.size(); i++) {
                 printTuple(resultbatch.elementAt(i));

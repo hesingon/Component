@@ -160,7 +160,7 @@ public class BLOCKNESTED extends Join {
                     for (i = lcurs; i < leftbatch.size(); i++) {
                         for (j = rcurs; j < numBufferedRightTuples; j++) {
                             Tuple lefttuple = leftbatch.elementAt(i);
-                            Tuple righttuple = rightbatches.get(rcurs/ rCapacity).elementAt(j % rCapacity);
+                            Tuple righttuple = rightbatches.get(j/ rCapacity).elementAt(j % rCapacity);
                             if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
                                 Tuple outtuple = lefttuple.joinWith(righttuple);
 
@@ -211,20 +211,16 @@ public class BLOCKNESTED extends Join {
                 rBatch = (Batch) in.readObject();
                 rightbatches.add(rBatch);
                 numBufferedRightTuples += rBatch.size();
-                if (i == 0 ) {
+                if (i == 0) {
                     rCapacity = rBatch.capacity();
                 }
             }
 
         } catch (EOFException e) {
-            try {
-                in.close();
-            } catch (IOException io) {
-                System.out.println("BLOCKNESTED:Error in temporary file reading");
-            }
         }
         if (rightbatches.size() == 0) {
             eosr = true;
+            in.close();
         }
     }
 
