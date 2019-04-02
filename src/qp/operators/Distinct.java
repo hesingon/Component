@@ -10,13 +10,18 @@ import qp.utils.*;
 import java.util.HashMap;
 import java.util.Vector;
 
+// todo: this Distinct operator does not include the PROJECT function
 public class Distinct extends Operator {
+    private static final int VARIANT_1 = 1;
+    private static final int VARIANT_2 = 2;
 
     Operator base;
     Vector attrSet;
     int batchsize, bufferNum;  // number of tuples per outbatch
-    HashMap<Integer, Vector> hm;
-
+    HashMap<Integer, Batch> partitionHash, dedupHash;
+    private Vector<Batch> PagesOnDisk = new Vector<Batch>();
+    private Vector<Batch> distinctOutput = new Vector<Batch>(); // all distinct tuples'll be packed into the batches
+    int batchNum = 0; //this is the index of the next batch to be returned from distinctOutput
 
     Batch inbatch;
     Batch outbatch;
@@ -40,29 +45,93 @@ public class Distinct extends Operator {
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
         bufferNum = BufferManager.getNumBuffer();
+        partitionHash = new HashMap<Integer, Batch>();
 
-        if (base.open())
-            return true;
-        else
+        _populateHash(partitionHash);
+
+        if (!base.open())
             return false;
+        else {
+            // Partitioning phase
+            while ((inbatch = base.next()) != null && inbatch.size() != 0) {
+                outbatch = new Batch(batchsize);
+                if (inbatch == null) {
+                    break;
+                }
+                Tuple currTuple;
+                Batch currBatch;
+                for (int i = 0; i < inbatch.size(); i++) {
+                    // todo: set the limit for each Batch by using isFull()
+                    currTuple = inbatch.elementAt(i);
+                    int partitionNum = _hashTuple(currTuple, bufferNum, VARIANT_1);
+                    currBatch = partitionHash.get(partitionNum);
+                    try {
+                        currBatch.add(currTuple);
+                    } catch (NullPointerException e) {
+                        System.out.println(e);
+                    }
+
+
+                    if (currBatch.isFull()) {
+                        PagesOnDisk.add(partitionHash.remove(i));
+                        partitionHash.put(i, new Batch(batchsize));
+                    }
+                }
+            }
+
+            // partitioning done, now write all pages to disk
+            for (int i = 0; i < bufferNum - 1; i++) {
+                PagesOnDisk.add(partitionHash.remove(i));
+            }
+
+            //Duplicate Elimination phase
+            dedupHash = new HashMap<Integer, Batch>();
+            _populateHash(dedupHash);
+
+            Tuple currTuple;
+            Batch currBacket;
+            for (Batch curr : PagesOnDisk) {
+                for (int i = 0; i < curr.size(); i++) {
+                    currTuple = curr.elementAt(i);
+                    int partitionNum = _hashTuple(currTuple, bufferNum, VARIANT_2);
+                    currBacket = dedupHash.get(partitionNum);
+
+                    if (currBacket.size() == 0)
+                        currBacket.add(currTuple);
+                    else {
+                        boolean isDuplicate = false;
+                        for (int j = 0; j < currBacket.size(); j++) {
+                            if (Tuple.isDuplicate(currTuple, currBacket.elementAt(j))) {
+                                isDuplicate = true;
+                                break;
+                            }
+                        }
+                        if (!isDuplicate)
+                            currBacket.add(currTuple);
+                    }
+
+                }
+            }
+
+            // pact all tuples from the hash table into batches.
+            _packTuplesFromHashtableToBatches();
+
+            return true;
+        }
+
     }
 
     /** Read next tuple from operator */
 
     public Batch next() {
         System.out.println("Project:-----------------in next-----------------");
-        outbatch = new Batch(batchsize);
-        inbatch = base.next();
-        if (inbatch == null) {
-            return null;
+        try {
+            inbatch = distinctOutput.get(batchNum++);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            inbatch = null;
         }
 
-        for (int i = 0; i < inbatch.size(); i++) {
-            int partitionNum = _hashTuple(inbatch.elementAt(i), bufferNum);
-//            System.out.print(partitionNum);
-
-        }
-
+        //            System.out.print(partitionNum);
         return inbatch;
     }
 
@@ -78,7 +147,9 @@ public class Distinct extends Operator {
 	    **/
     }
 
-    private int _hashTuple(Tuple tuple, int partitions) {
+
+    // hashVariant is used to vary the hash function
+    private int _hashTuple(Tuple tuple, int partitions, int hashVariant) {
         int hashInput = 0;
         for (Object col_value : tuple.data()) {
             if (col_value instanceof Integer) {
@@ -87,7 +158,7 @@ public class Distinct extends Operator {
                 hashInput += _stringHash(col_value);
             }
         }
-        return hashInput % partitions;
+        return (hashVariant * hashInput + (hashInput % hashVariant)) % (partitions - 1);
     }
 
     private int _stringHash(Object input) {
@@ -100,8 +171,31 @@ public class Distinct extends Operator {
         return sum;
     }
 
-    private void _generatePartitions() {
 
+    private void _populateHash(HashMap<Integer, Batch> hashtable) {
+        for (int i = 0; i < bufferNum - 1; i++) {
+            hashtable.put(i, new Batch(batchsize));
+        }
+    }
+
+    private void _packTuplesFromHashtableToBatches() {
+        Batch storebatch = new Batch(batchsize);
+        Batch hashbatch;
+        for (int i = 0; i < this.dedupHash.size(); i++) {
+            hashbatch = this.dedupHash.get(i);
+
+            while (hashbatch.size() != 0) {
+
+                storebatch.add(hashbatch.removeAndGetTail());
+
+                if (storebatch.isFull()) {
+                    this.distinctOutput.add(storebatch);
+                    storebatch = new Batch(batchsize);
+                }
+            }
+        }
+        if (storebatch.size() != 0)
+            this.distinctOutput.add(storebatch);
     }
 
 }

@@ -73,6 +73,11 @@ public class Batch implements Serializable {
         tuples.remove(i);
     }
 
+    public Tuple removeAndGetTail() {
+        int lastIndex = tuples.size() - 1;
+        return (Tuple) tuples.remove(lastIndex);
+    }
+
     public void setElementAt(Tuple t, int i) {
         tuples.setElementAt(t, i);
     }
