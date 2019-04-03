@@ -134,6 +134,16 @@ public class RandomDB {
             outmd.writeObject(schema);
             outmd.close();
 
+            /**
+             * Build a hashmap for each col to find different values number
+             */
+            ArrayList<HashMap<Object, Boolean>> mapList = new ArrayList<>();
+            int[] distinceCounts = new int[numCol + 5];
+            for (int j = 1; j < numCol; j++) {
+                mapList.add(new HashMap<>());
+                distinceCounts[j] = 0;
+            }
+
             for (i = 0; i < numtuple; i++) {
 //System.out.println("in table generation: "+i);
                 int numb = random.nextInt(range[0]);
@@ -144,17 +154,30 @@ public class RandomDB {
                 outtbl.print(numb + "\t");
 
                 for (int j = 1; j < numCol; j++) {
+                    HashMap<Object, Boolean> thisMap = mapList.get(j-1);
                     if (datatype[j].equals("STRING")) {
                         String temp = rdb.randString(range[j]);
                         outtbl.print(temp + "\t");
+                        if (!thisMap.containsKey(temp)){
+                            distinceCounts[j]++;
+                            thisMap.put(temp, true);
+                        }
                     } else if (datatype[j].equals("FLOAT")) {
                         float value = range[j] * random.nextFloat();
                         outtbl.print(value + "\t");
+                        if (!thisMap.containsKey(value)){
+                            distinceCounts[j]++;
+                            thisMap.put(value, true);
+                        }
                     } else if (datatype[j].equals("INTEGER")) {
                         int value = random.nextInt(range[j]);
                         outtbl.print(value + "\t");
                         if (keytype[j].equals("FK")) {
                             fk[value] = true;
+                        }
+                        if (!thisMap.containsKey(value)){
+                            distinceCounts[j]++;
+                            thisMap.put(value, true);
                         }
                     }
                 }
@@ -168,13 +191,33 @@ public class RandomDB {
             /** printing the number of distinct values of each column
              in <tablename>.stat file
              **/
+            /** BUG REPORT
+             * always return numtuple for string type
+             */
+//            for (i = 0; i < numCol; i++) {
+//                if (datatype[i].equals("STRING")) {
+//                    outstat.print(numtuple + "\t");
+//                } else if (datatype[i].equals("FLOAT")) {
+//                    outstat.print(numtuple + "\t");
+//                } else if (datatype[i].equals("INTEGER")) {
+//                    if (keytype[i].equals("PK")) {
+//                        int numdist = rdb.getnumdistinct(pk);
+//                        outstat.print(numdist + "\t");
+//                    } else if (keytype[i].equals("FK")) {
+//                        int numdist = rdb.getnumdistinct(fk);
+//                        outstat.print(numdist + "\t");
+//                    } else {
+//                        if (numtuple < range[i])
+//                            outstat.print(numtuple + "\t");
+//                        else
+//                            outstat.print(range[i] + "\t");
+//                    }
+//
+//                }
+//            }
 
             for (i = 0; i < numCol; i++) {
-                if (datatype[i].equals("STRING")) {
-                    outstat.print(numtuple + "\t");
-                } else if (datatype[i].equals("FLOAT")) {
-                    outstat.print(numtuple + "\t");
-                } else if (datatype[i].equals("INTEGER")) {
+                if (datatype[i].equals("INTEGER")) {
                     if (keytype[i].equals("PK")) {
                         int numdist = rdb.getnumdistinct(pk);
                         outstat.print(numdist + "\t");
@@ -182,18 +225,19 @@ public class RandomDB {
                         int numdist = rdb.getnumdistinct(fk);
                         outstat.print(numdist + "\t");
                     } else {
-                        if (numtuple < range[i])
-                            outstat.print(numtuple + "\t");
-                        else
-                            outstat.print(range[i] + "\t");
+                        outstat.print(distinceCounts[i] + "\t");
                     }
 
+                } else {
+                    outstat.print(distinceCounts[i] + "\t");
                 }
             }
+
             outstat.close();
             in.close();
         } catch (IOException io) {
             System.out.println("error in IO ");
+            System.out.println(io);
             System.exit(1);
         }
 
