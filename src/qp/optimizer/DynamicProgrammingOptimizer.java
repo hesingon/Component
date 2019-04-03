@@ -260,16 +260,5 @@ public class DynamicProgrammingOptimizer extends Optimizer {
             }
             return bestJoin;
         }
-
-        private void modifyHashtable(Operator old, Operator newop) {
-            Enumeration e = tab_op_hash.keys();
-            while (e.hasMoreElements()) {
-                String key = (String) e.nextElement();
-                Operator temp = (Operator) tab_op_hash.get(key);
-                if (temp == old) {
-                    tab_op_hash.put(key, newop);
-                }
-            }
-        }
     }
 }
