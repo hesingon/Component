@@ -1,20 +1,13 @@
-/**
- * Base class for optimized plan exploration
- **/
-
-
 package qp.optimizer;
 
-import qp.utils.*;
 import qp.operators.*;
+import qp.utils.SQLQuery;
 
-import java.lang.Math;
 import java.util.Vector;
 
-public class Optimizer {
+public abstract class Optimizer {
 
     SQLQuery sqlquery;     // Vector of Vectors of Select + From + Where + GroupBy
-
 
     /**
      * constructor
@@ -24,50 +17,17 @@ public class Optimizer {
         this.sqlquery = sqlquery;
     }
 
+    /**
+     * implementation of Iterative Improvement Algorithm
+     * * for Randomized optimization of Query Plan
+     **/
 
-    private static Operator getBestJoin(Operator left, Operator right, Condition cn) {
-        int lowestCost = Integer.MAX_VALUE;
-        Join bestJoin = null;
-        PlanCost planCost = new PlanCost();
-        for (int i = 0; i < JoinType.numJoinTypes(); i++) {
-            Join node = new Join(left, right, cn, i);
-            int cost = planCost.getCost(node);
-
-            if (lowestCost > cost) {
-                bestJoin = node;
-            }
-
-            node = switchSubtree(node);
-
-            cost = planCost.getCost(node);
-
-            if (lowestCost > cost) {
-                bestJoin = node;
-            }
-        }
-        return bestJoin;
-    }
-
-    private static Join switchSubtree(Join node) {
-        System.out.println("------------------switch by commutative---------------");
-        Join cloned = (Join) node.clone();
-        Operator left = node.getLeft();
-        Operator right = node.getRight();
-        cloned.setLeft(right);
-        cloned.setRight(left);
-        /*** also flip the condition i.e.,  A X a1b1 B   = B X b1a1 A  **/
-        cloned.getCondition().flip();
-
-        /** modify the schema before returning the root **/
-        modifySchema(node);
-        return cloned;
-    }
+    public abstract Operator getOptimizedPlan();
 
     /**
-     * modifies the schema of operators which are modified due to selecting an alternative neighbor plan
+     * modifies the schema of operators which are modified due to selecing an alternative neighbor plan
      **/
-    private static void modifySchema(Operator node) {
-
+    protected static void modifySchema(Operator node) {
 
         if (node.getOpType() == OpType.JOIN) {
             Operator left = ((Join) node).getLeft();
@@ -85,5 +45,24 @@ public class Optimizer {
             Vector attrlist = ((Project) node).getProjAttr();
             node.setSchema(base.getSchema().subSchema(attrlist));
         }
+    }
+
+
+    /**
+     * Switches subtrees in-place
+     * @param node
+     * @return
+     */
+    protected static Join switchSubtree(Join node) {
+        Operator left = node.getLeft();
+        Operator right = node.getRight();
+        node.setLeft(right);
+        node.setRight(left);
+        /*** also flip the condition i.e.,  A X a1b1 B   = B X b1a1 A  **/
+        node.getCondition().flip();
+
+        /** modify the schema before returning the root **/
+        modifySchema(node);
+        return node;
     }
 }

@@ -117,7 +117,7 @@ public class QueryMain {
          execution plan
          **/
 
-        RandomOptimizer ro = new RandomOptimizer(sqlquery);
+        DynamicProgrammingOptimizer ro = new DynamicProgrammingOptimizer(sqlquery);
         Operator logicalroot = ro.getOptimizedPlan();
         if (logicalroot == null) {
             System.out.println("root is null");
