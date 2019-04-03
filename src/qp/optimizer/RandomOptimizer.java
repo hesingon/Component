@@ -401,7 +401,7 @@ public class RandomOptimizer {
 
     public static Operator makeExecPlan(Operator node, boolean isDistinct) {
         if (isDistinct) {
-            return new Distinct(node);
+            return new Distinct(makeExecPlan(node));
         }
         else return makeExecPlan(node);
     }
