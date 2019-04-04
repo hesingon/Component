@@ -5,7 +5,7 @@ Kenneth Tan Xin You (A0135812L)\
 Zhao Tianze (A0147989B)
 
 ## Project working/output path
-\src
+\src\
 \testcases
 
 ## Files modifications
