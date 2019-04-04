@@ -152,7 +152,7 @@ public class PlanCost {
                 joincost = 0;
                 break;
             case JoinType.SORTMERGE:
-                joincost = 0;
+                joincost = getExternalSortCost(leftpages, numbuff) + getExternalSortCost(rightpages, numbuff) + (leftpages + rightpages);
                 break;
             case JoinType.HASHJOIN:
                 joincost = 0;
@@ -166,6 +166,10 @@ public class PlanCost {
         return outtuples;
     }
 
+
+    private int getExternalSortCost(int numPage, int numBuff) {
+        return (1 + (int) Math.ceil(Math.log(Math.ceil(numPage / (double)numBuff)) / Math.log(numBuff - 1))) * (2*numPage);
+    }
 
     /** Find number of incoming tuples, Using the selectivity find # of output tuples
      ** And statistics about the attributes
