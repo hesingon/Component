@@ -50,7 +50,9 @@ public class DynamicProgrammingOptimizer extends Optimizer {
             Optional<Condition> optionalCondition = Optional.empty();
             for (BitSet join : joins.keySet()) {
 
-                if (isSupersetOf(combined, join) && !isSupersetOf(original, join)) {
+                if (isSupersetOf(combined, join) && !isSupersetOf(original, join) && !isSupersetOf(
+                        additional,
+                        join)) {
                     if (optionalCondition.isPresent()) {
                         System.out.println("We are not prepared for two join conditions.");
                         System.exit(1);
@@ -185,49 +187,55 @@ public class DynamicProgrammingOptimizer extends Optimizer {
 
             if (conditionExists(currSubset)) {
 
-                List<BitSet> prevSubsets = allPossibleBitSets.get(cardinality - 1);
+                for (int i = 1; i <= (cardinality + 1) / 2; i++) {
+                    List<BitSet> complements = allPossibleBitSets.get(cardinality - i);
 
-                for (int k = 0; k < prevSubsets.size(); k++) {
-                    BitSet prevSubset = prevSubsets.get(k);
-                    if (!isSupersetOf(currSubset, prevSubset)) {
-                        continue;
+                    for (int k = 0; k < complements.size(); k++) {
+                        BitSet complement = complements.get(k);
+                        if (!isSupersetOf(currSubset, complement)) {
+                            continue;
+                        }
+
+                        if (optimalPlans.get(complement) == null) {
+                            continue;
+                        }
+
+                        BitSet missing = andNotWithClone(currSubset, complement);
+
+                        if (optimalPlans.get(missing) == null) {
+                            continue;
+                        }
+
+                        Optional<Condition> optionalCondition = findConditionBetween(complement,
+                                                                                     missing);
+
+                        if (!optionalCondition.isPresent()) {
+                            continue;
+                        }
+
+
+                        Operator optPlanForPrevSubset = getOptimalPlan(complement);
+                        Operator optPlanForMissing = getOptimalPlan(missing);
+
+                        Join jn = new Join(optPlanForPrevSubset,
+                                           optPlanForMissing,
+                                           optionalCondition.get(),
+                                           OpType.JOIN);
+
+                        Schema newsche = optPlanForPrevSubset.getSchema()
+                                                             .joinWith(optPlanForMissing.getSchema());
+                        jn.setSchema(newsche);
+
+                        Operator bestJoinPlan = getBestJoinPlan(jn);
+                        PlanCost pc = new PlanCost();
+                        int cost = pc.getCost(bestJoinPlan);
+
+                        if (cost < optimalCost) {
+                            optimalCost = cost;
+                            optimalPlan = bestJoinPlan;
+                        }
+
                     }
-
-                    if (optimalPlans.get(prevSubset) == null) {
-                        continue;
-                    }
-
-                    BitSet missing = andNotWithClone(currSubset, prevSubset);
-
-                    Optional<Condition> optionalCondition = findConditionBetween(prevSubset,
-                                                                                 missing);
-
-                    if (!optionalCondition.isPresent()) {
-                        continue;
-                    }
-
-
-                    Operator optPlanForPrevSubset = getOptimalPlan(prevSubset);
-                    Operator optPlanForMissing = getOptimalPlan(missing);
-
-                    Join jn = new Join(optPlanForPrevSubset,
-                                       optPlanForMissing,
-                                       optionalCondition.get(),
-                                       OpType.JOIN);
-
-                    Schema newsche = optPlanForPrevSubset.getSchema()
-                                                         .joinWith(optPlanForMissing.getSchema());
-                    jn.setSchema(newsche);
-
-                    Operator bestJoinPlan = getBestJoinPlan(jn);
-                    PlanCost pc = new PlanCost();
-                    int cost = pc.getCost(bestJoinPlan);
-
-                    if (cost < optimalCost) {
-                        optimalCost = cost;
-                        optimalPlan = bestJoinPlan;
-                    }
-
                 }
             }
 
